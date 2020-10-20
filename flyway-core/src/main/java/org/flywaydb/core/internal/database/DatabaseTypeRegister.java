@@ -30,6 +30,7 @@ import org.flywaydb.core.internal.database.hsqldb.HSQLDBDatabaseType;
 import org.flywaydb.core.internal.database.informix.InformixDatabaseType;
 import org.flywaydb.core.internal.database.mysql.MariaDBDatabaseType;
 import org.flywaydb.core.internal.database.mysql.MySQLDatabaseType;
+import org.flywaydb.core.internal.database.mysql.TiDBDatabaseType;
 import org.flywaydb.core.internal.database.oracle.OracleDatabaseType;
 import org.flywaydb.core.internal.database.postgresql.PostgreSQLDatabaseType;
 import org.flywaydb.core.internal.database.redshift.RedshiftDatabaseType;
@@ -76,6 +77,7 @@ public class DatabaseTypeRegister {
             registeredDatabaseTypes.add(new CockroachDBDatabaseType());
             registeredDatabaseTypes.add(new RedshiftDatabaseType());
             registeredDatabaseTypes.add(new MariaDBDatabaseType());
+            registeredDatabaseTypes.add(new TiDBDatabaseType());
 
             registeredDatabaseTypes.add(new DB2DatabaseType());
             registeredDatabaseTypes.add(new DerbyDatabaseType());
