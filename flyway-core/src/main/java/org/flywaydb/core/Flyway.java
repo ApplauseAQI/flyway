@@ -21,6 +21,7 @@ import org.flywaydb.core.api.callback.Callback;
 import org.flywaydb.core.api.configuration.ClassicConfiguration;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.api.exception.FlywayValidateException;
 import org.flywaydb.core.api.logging.Log;
 import org.flywaydb.core.api.logging.LogFactory;
 import org.flywaydb.core.api.migration.JavaMigration;
@@ -31,6 +32,7 @@ import org.flywaydb.core.api.ClassProvider;
 import org.flywaydb.core.internal.clazz.NoopClassProvider;
 import org.flywaydb.core.internal.command.*;
 import org.flywaydb.core.internal.configuration.ConfigurationValidator;
+import org.flywaydb.core.internal.strategy.RetryStrategy;
 import org.flywaydb.core.internal.database.base.Database;
 import org.flywaydb.core.internal.database.base.DatabaseType;
 import org.flywaydb.core.internal.database.base.Schema;
@@ -39,10 +41,9 @@ import org.flywaydb.core.internal.jdbc.StatementInterceptor;
 import org.flywaydb.core.internal.license.VersionPrinter;
 import org.flywaydb.core.internal.parser.ParsingContext;
 import org.flywaydb.core.internal.resolver.CompositeMigrationResolver;
-import org.flywaydb.core.internal.resource.NoopResourceProvider;
+
+import org.flywaydb.core.internal.resource.*;
 import org.flywaydb.core.api.ResourceProvider;
-import org.flywaydb.core.internal.resource.StringResource;
-import org.flywaydb.core.internal.resource.ResourceNameValidator;
 import org.flywaydb.core.internal.scanner.LocationScannerCache;
 import org.flywaydb.core.internal.scanner.ResourceNameCache;
 import org.flywaydb.core.internal.scanner.Scanner;
@@ -168,7 +169,7 @@ public class Flyway {
                     ValidateResult validateResult = doValidate(database, migrationResolver, schemaHistory, schemas, callbackExecutor,
                             true);
                     if (!validateResult.validationSuccessful && !configuration.isCleanOnValidationError()) {
-                        throw new FlywayException("Validate failed: " + validateResult.validationError);
+                        throw new FlywayValidateException(validateResult.errorDetails);
                     }
                 }
 
@@ -180,7 +181,7 @@ public class Flyway {
                         }
                     }
 
-                    if (!nonEmptySchemas.isEmpty()) {
+                    if (!nonEmptySchemas.isEmpty() && !configuration.isSkipExecutingMigrations()) {
                         if (configuration.isBaselineOnMigrate()) {
                             doBaseline(schemaHistory, callbackExecutor, database);
                         } else {
@@ -262,11 +263,11 @@ public class Flyway {
             public Void execute(MigrationResolver migrationResolver, SchemaHistory schemaHistory, Database database,
                                 Schema[] schemas, CallbackExecutor callbackExecutor,
                                 StatementInterceptor statementInterceptor) {
-                String validationError = doValidate(database, migrationResolver, schemaHistory, schemas, callbackExecutor,
-                        configuration.isIgnorePendingMigrations()).validationError;
+                ValidateResult validateResult = doValidate(database, migrationResolver, schemaHistory, schemas, callbackExecutor,
+                        configuration.isIgnorePendingMigrations());
 
-                if (validationError != null && !configuration.isCleanOnValidationError()) {
-                    throw new FlywayException("Validate failed: " + validationError);
+                if (!validateResult.validationSuccessful && !configuration.isCleanOnValidationError()) {
+                    throw new FlywayValidateException(validateResult.errorDetails);
                 }
 
                 return null;
@@ -474,6 +475,7 @@ public class Flyway {
         final DatabaseType databaseType = jdbcConnectionFactory.getDatabaseType();
         final ParsingContext parsingContext = new ParsingContext();
         final SqlScriptFactory sqlScriptFactory = databaseType.createSqlScriptFactory(configuration, parsingContext);
+        RetryStrategy.setNumberOfRetries(configuration.getLockRetryCount());
 
         final SqlScriptExecutorFactory noCallbackSqlScriptExecutorFactory = databaseType.createSqlScriptExecutorFactory(
                 jdbcConnectionFactory,
@@ -523,7 +525,7 @@ public class Flyway {
             DefaultCallbackExecutor callbackExecutor =
                     new DefaultCallbackExecutor(configuration, database, defaultSchema,
                         prepareCallbacks(
-                                database, resourceProvider, jdbcConnectionFactory, sqlScriptFactory, statementInterceptor, defaultSchema
+                                database, resourceProvider, jdbcConnectionFactory, sqlScriptFactory, statementInterceptor, defaultSchema, parsingContext
                         ));
 
             SqlScriptExecutorFactory sqlScriptExecutorFactory =
@@ -659,7 +661,8 @@ public class Flyway {
                                             JdbcConnectionFactory jdbcConnectionFactory,
                                             SqlScriptFactory sqlScriptFactory,
                                             StatementInterceptor statementInterceptor,
-                                            Schema schema) {
+                                            Schema schema,
+                                            ParsingContext parsingContext) {
         List<Callback> effectiveCallbacks = new ArrayList<>();
         CallbackExecutor callbackExecutor = NoopCallbackExecutor.INSTANCE;
 
@@ -680,6 +683,13 @@ public class Flyway {
 
 
         effectiveCallbacks.addAll(Arrays.asList(configuration.getCallbacks()));
+
+
+
+
+
+
+
 
         if (!configuration.isSkipDefaultCallbacks()) {
             SqlScriptExecutorFactory sqlScriptExecutorFactory =

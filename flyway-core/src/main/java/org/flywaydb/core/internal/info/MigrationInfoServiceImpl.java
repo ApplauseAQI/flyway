@@ -17,6 +17,8 @@ package org.flywaydb.core.internal.info;
 
 import org.flywaydb.core.api.*;
 import org.flywaydb.core.api.configuration.Configuration;
+import org.flywaydb.core.api.output.ValidateOutput;
+
 import org.flywaydb.core.api.resolver.Context;
 import org.flywaydb.core.api.resolver.MigrationResolver;
 import org.flywaydb.core.api.resolver.ResolvedMigration;
@@ -373,15 +375,12 @@ public class MigrationInfoServiceImpl implements MigrationInfoService, Operation
      */
     private void markRepeatableAsDeleted(String description, List<Pair<AppliedMigration, AppliedMigrationAttributes>> appliedRepeatable) {
         for (int i = appliedRepeatable.size() - 1; i >= 0; i--) {
-            Pair<AppliedMigration, AppliedMigrationAttributes> av = appliedRepeatable.get(i);
-            if (!av.getLeft().getType().isSynthetic() && description.equals(av.getLeft().getDescription())) {
-                if (av.getRight().deleted) {
-                    throw new FlywayException("Corrupted schema history: multiple delete entries for description " + description,
-                            ErrorCode.DUPLICATE_DELETED_MIGRATION);
-                } else {
-                    av.getRight().deleted = true;
-                    return;
+            Pair<AppliedMigration, AppliedMigrationAttributes> ar = appliedRepeatable.get(i);
+            if (!ar.getLeft().getType().isSynthetic() && description.equals(ar.getLeft().getDescription())) {
+                if (!ar.getRight().deleted) {
+                    ar.getRight().deleted = true;
                 }
+                return;
             }
         }
     }
@@ -435,6 +434,18 @@ public class MigrationInfoServiceImpl implements MigrationInfoService, Operation
     public MigrationInfo[] all() {
         return migrationInfos.toArray(new MigrationInfo[0]);
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
     @Override
     public MigrationInfo current() {
@@ -590,28 +601,35 @@ public class MigrationInfoServiceImpl implements MigrationInfoService, Operation
     /**
      * Validate all migrations for consistency.
      *
-     * @return The error message, or {@code null} if everything is fine.
+     * @return The list of migrations that failed validation, which is empty if everything is fine.
      */
-    public String validate() {
-        StringBuilder builder = new StringBuilder();
-        boolean hasFailures = false;
+    public List<ValidateOutput> validate() {
+        List<ValidateOutput> invalidMigrations = new ArrayList<>();
+        CommandResultFactory commandResultFactory = new CommandResultFactory();
 
         for (MigrationInfoImpl migrationInfo : migrationInfos) {
-            String message = migrationInfo.validate();
-            if (message != null) {
-                if (!hasFailures)
-                    builder.append("\n");
-
-                builder.append(message + "\n");
-                hasFailures = true;
+            ErrorDetails validateError = migrationInfo.validate();
+            if (validateError != null) {
+                invalidMigrations.add(commandResultFactory.createValidateOutput(migrationInfo, validateError));
             }
         }
-        return (hasFailures) ? builder.toString() : null;
+        return invalidMigrations;
     }
 
     @Override
     public InfoResult getInfoResult() {
-        CommandResultFactory commandResultFactory = new CommandResultFactory();
-        return commandResultFactory.createInfoResult(this.context.getConfiguration(), this.database, this.all(), this.current(), this.allSchemasEmpty);
+        return getInfoResult(this.all());
     }
+
+    public InfoResult getInfoResult(MigrationInfo[] infos) {
+        CommandResultFactory commandResultFactory = new CommandResultFactory();
+        return commandResultFactory.createInfoResult(this.context.getConfiguration(), this.database, infos, this.current(), this.allSchemasEmpty);
+    }
+
+
+
+
+
+
+
 }

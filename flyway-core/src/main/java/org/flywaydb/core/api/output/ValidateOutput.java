@@ -13,15 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.flywaydb.core.api;
+package org.flywaydb.core.api.output;
 
+import org.flywaydb.core.api.ErrorDetails;
 
-import org.flywaydb.core.api.output.InfoResult;
+public class ValidateOutput {
 
-interface InfoOutputProvider {
-    InfoResult getInfoResult();
+    public final String version;
+    public final String description;
+    public final String filepath;
+    public final ErrorDetails errorDetails;
 
-
-
+    public ValidateOutput(String version, String description, String filepath, ErrorDetails errorDetails) {
+        this.version = version;
+        this.description = description;
+        this.filepath = filepath;
+        this.errorDetails = errorDetails;
+    }
 
 }

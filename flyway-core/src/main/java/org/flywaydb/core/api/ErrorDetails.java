@@ -15,13 +15,14 @@
  */
 package org.flywaydb.core.api;
 
+public class ErrorDetails {
 
-import org.flywaydb.core.api.output.InfoResult;
+    public final ErrorCode errorCode;
+    public final String errorMessage;
 
-interface InfoOutputProvider {
-    InfoResult getInfoResult();
-
-
-
+    public ErrorDetails(ErrorCode errorCode, String errorMessage) {
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+    }
 
 }

@@ -13,15 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.flywaydb.core.api;
+package org.flywaydb.core.api.exception;
 
+import org.flywaydb.core.api.ErrorDetails;
+import org.flywaydb.core.api.FlywayException;
 
-import org.flywaydb.core.api.output.InfoResult;
+/**
+ * Exception thrown when Flyway encounters a problem with Validate.
+ */
+public class FlywayValidateException extends FlywayException {
 
-interface InfoOutputProvider {
-    InfoResult getInfoResult();
-
-
-
+    public FlywayValidateException(ErrorDetails errorDetails) {
+        super("Validate failed: " + errorDetails.errorMessage, errorDetails.errorCode);
+    }
 
 }

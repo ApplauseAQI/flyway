@@ -20,18 +20,17 @@ import com.google.gson.GsonBuilder;
 import org.flywaydb.commandline.ConsoleLog.Level;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.*;
+
+
 import org.flywaydb.core.api.logging.Log;
 import org.flywaydb.core.api.logging.LogCreator;
 import org.flywaydb.core.api.logging.LogFactory;
-import org.flywaydb.core.api.output.CompositeResult;
+import org.flywaydb.core.api.output.*;
 import org.flywaydb.core.internal.configuration.ConfigUtils;
 import org.flywaydb.core.internal.database.DatabaseTypeRegister;
 import org.flywaydb.core.internal.database.base.DatabaseType;
 import org.flywaydb.core.internal.info.MigrationInfoDumper;
 import org.flywaydb.core.internal.license.VersionPrinter;
-import org.flywaydb.core.api.output.ErrorOutput;
-import org.flywaydb.core.api.output.OperationResult;
-import org.flywaydb.core.api.output.OperationResultBase;
 import org.flywaydb.core.internal.util.ClassUtils;
 import org.flywaydb.core.internal.util.StringUtils;
 
@@ -247,14 +246,24 @@ public class Main {
             }
         } else if ("info".equals(operation)) {
             MigrationInfoService info = flyway.info();
-            result = info.getInfoResult();
             MigrationInfo current = info.current();
             MigrationVersion currentSchemaVersion = current == null ? MigrationVersion.EMPTY : current.getVersion();
 
             MigrationVersion schemaVersionToOutput = currentSchemaVersion == null ? MigrationVersion.EMPTY : currentSchemaVersion;
             LOG.info("Schema version: " + schemaVersionToOutput);
             LOG.info("");
-            LOG.info(MigrationInfoDumper.dumpToAsciiTable(info.all()));
+
+
+
+
+
+
+
+             result = info.getInfoResult();
+             MigrationInfo[] infos = info.all();
+
+
+            LOG.info(MigrationInfoDumper.dumpToAsciiTable(infos));
         } else if ("repair".equals(operation)) {
             result = flyway.repair();
         } else {
@@ -265,6 +274,16 @@ public class Main {
 
         return result;
     }
+
+
+
+
+
+
+
+
+
+
 
     private static void printJson(CommandLineArguments commandLineArguments, OperationResult object) {
         String json = convertObjectToJsonString(object);
@@ -303,7 +322,7 @@ public class Main {
 
 
     /**
-     * Filters there properties to remove the Flyway Commandline-specific ones.
+     * Filters the properties to remove the Flyway Commandline-specific ones.
      *
      * @param config The properties to filter.
      */
@@ -372,6 +391,7 @@ public class Main {
         LOG.info("placeholders                 : Placeholders to replace in sql migrations");
         LOG.info("placeholderPrefix            : Prefix of every placeholder");
         LOG.info("placeholderSuffix            : Suffix of every placeholder");
+        LOG.info("lockRetryCount               : The maximum number of retries when trying to obtain a lock");
         LOG.info("jdbcProperties               : Properties to pass to the JDBC driver object");
         LOG.info("installedBy                  : Username that will be recorded in the schema history table");
         LOG.info("target                       : Target version up to which Flyway should use migrations");
@@ -528,7 +548,7 @@ public class Main {
 
 
 
-                && needsPassword(url)) {
+                && needsPassword(url, config.get(ConfigUtils.USER))) {
             char[] password = console.readPassword("Database password: ");
             config.put(ConfigUtils.PASSWORD, password == null ? "" : String.valueOf(password));
         }
@@ -545,9 +565,13 @@ public class Main {
     /**
      * Detect whether the JDBC URL specifies a known authentication mechanism that does not need a password.
      */
-    private static boolean needsPassword(String url) {
+    private static boolean needsPassword(String url, String username) {
         DatabaseType databaseType = DatabaseTypeRegister.getDatabaseTypeForUrl(url);
-        return databaseType.detectPasswordRequiredByUrl(url);
+        return databaseType.detectPasswordRequiredByUrl(url)
+
+
+
+                ;
     }
 
     /**
