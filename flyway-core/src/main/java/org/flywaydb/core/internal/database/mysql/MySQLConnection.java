@@ -54,7 +54,7 @@ public class MySQLConnection extends Connection<MySQLDatabase> {
                 + " WHERE variable_value IS NOT NULL";
         canResetUserVariables = hasUserVariableResetCapability();
 
-        originalForeignKeyChecks = getIntVariableValue(FOREIGN_KEY_CHECKS);
+        originalForeignKeyChecks = (database.isTiDB() ? 0 : getIntVariableValue(FOREIGN_KEY_CHECKS));
         originalSqlSafeUpdates = getIntVariableValue(SQL_SAFE_UPDATES);
     }
 
